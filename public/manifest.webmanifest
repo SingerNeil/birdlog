@@ -1,0 +1,17 @@
+{
+  "name": "BirdLog",
+  "short_name": "BirdLog",
+  "description": "鸟舍学徒记录与内容孵化系统",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f4ed",
+  "theme_color": "#16302b",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
