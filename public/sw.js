@@ -1,4 +1,4 @@
-// v0.1.2 disables the development Service Worker to avoid stale local caches.
+// BirdLog disables the development Service Worker to avoid stale local caches.
 self.addEventListener("install", () => {
   self.skipWaiting();
 });

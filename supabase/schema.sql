@@ -14,20 +14,27 @@ create index if not exists birdlog_entries_owner_updated_idx
 
 alter table public.birdlog_entries enable row level security;
 
--- v0.1 simple policy: the app sends owner_key from VITE_SUPABASE_OWNER_KEY.
--- This is enough for a personal MVP, but not strong security because frontend env vars are visible.
--- Replace with Supabase Auth before sharing the deployed app widely.
+-- BirdLog is a personal tool without a login system. The app sends the same
+-- owner key in the row and in the x-owner-key request header. This keeps rows
+-- separated for personal use while preserving a static-site deployment model.
+-- Upgrade to Supabase Auth before turning this into a multi-user product.
 drop policy if exists "birdlog owner read" on public.birdlog_entries;
 create policy "birdlog owner read"
   on public.birdlog_entries
   for select
   to anon
-  using (true);
+  using (
+    owner_key = coalesce((current_setting('request.headers', true)::jsonb ->> 'x-owner-key'), '')
+  );
 
 drop policy if exists "birdlog owner write" on public.birdlog_entries;
 create policy "birdlog owner write"
   on public.birdlog_entries
   for all
   to anon
-  using (true)
-  with check (true);
+  using (
+    owner_key = coalesce((current_setting('request.headers', true)::jsonb ->> 'x-owner-key'), '')
+  )
+  with check (
+    owner_key = coalesce((current_setting('request.headers', true)::jsonb ->> 'x-owner-key'), '')
+  );
