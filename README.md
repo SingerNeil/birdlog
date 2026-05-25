@@ -18,12 +18,14 @@ BirdLog 是一个单人使用的鸟舍学徒记录与内容孵化系统。它的
 npm run dev
 ```
 
-打开 `http://localhost:5173`。
+打开 `http://127.0.0.1:5173`。
+
+如果 5173 被占用，终端会自动换到 5174、5175 等端口。以终端里打印的 `Open: ...` 地址为准。
 
 也可以不用 npm，直接运行：
 
 ```bash
-python3 -m http.server 5173 --bind 127.0.0.1
+python3 dev-server.py
 ```
 
 ## 本地页面没反应时
@@ -38,7 +40,7 @@ cd /Users/ming/codes/birdlog
 npm run dev
 ```
 
-3. 打开 `http://localhost:5173/?v=latest`。
+3. 打开终端里打印的 `Open: ...` 地址。
 4. 在浏览器里强制刷新一次：Mac 上按 `Command + Shift + R`。
 
 v0.1.2 已经关闭本地 Service Worker 缓存，后续不应该再出现旧脚本卡住交互的问题。
