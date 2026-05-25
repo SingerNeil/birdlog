@@ -19,6 +19,41 @@ body {
   min-height: 100vh;
 }
 
+.diagnostic-bar {
+  position: sticky;
+  z-index: 100;
+  top: 0;
+  display: grid;
+  grid-template-columns: auto minmax(140px, 280px) auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid #c7bcaa;
+  background: #fff7d6;
+  color: #2e342f;
+}
+
+.diagnostic-bar input {
+  min-height: 36px;
+  border: 1px solid #b8a77e;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fffefb;
+}
+
+.diagnostic-bar button {
+  min-height: 36px;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #16302b;
+  color: #fffdf8;
+  font-weight: 800;
+}
+
+.diagnostic-bar span {
+  font-size: 0.9rem;
+}
+
 button,
 input,
 textarea,

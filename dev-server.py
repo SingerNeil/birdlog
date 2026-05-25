@@ -35,6 +35,10 @@ def main():
     print("")
     print("BirdLog dev server is running.")
     print(f"Open: http://{HOST}:{port}/?v=latest")
+    if port != START_PORT:
+        print("")
+        print(f"Port {START_PORT} is already occupied, so BirdLog is using {port}.")
+        print("Use the exact Open URL above. Do not open the old localhost:5173 tab.")
     print("")
     print("Press Ctrl+C to stop.")
     print("")
