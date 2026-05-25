@@ -1089,10 +1089,22 @@ function downloadText(filename, content, type = "text/plain;charset=utf-8") {
 
 async function init() {
   document.addEventListener("submit", handleDelegatedSubmit);
+  await clearOldServiceWorkers();
   state.entries = await getAllEntries();
   render();
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+
+async function clearOldServiceWorkers() {
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+    }
+  } catch {
+    // Local recording should not depend on PWA cache cleanup succeeding.
   }
 }
 
