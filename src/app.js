@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.1.0";
 const DB_NAME = "birdlog-db";
 const DB_VERSION = 1;
 const ENTRY_STORE = "entries";
@@ -254,12 +254,12 @@ const templates = {
 };
 
 const views = [
-  { id: "dashboard", label: "看板" },
-  { id: "capture", label: "记录" },
-  { id: "library", label: "资料库" },
-  { id: "review", label: "复盘" },
-  { id: "exports", label: "导出" },
-  { id: "settings", label: "设置" }
+  { id: "dashboard", label: "看板", icon: "▦", hint: "资产概览" },
+  { id: "capture", label: "记录", icon: "+", hint: "快速沉淀" },
+  { id: "library", label: "资料库", icon: "⌕", hint: "搜索整理" },
+  { id: "review", label: "复盘", icon: "◷", hint: "周期判断" },
+  { id: "exports", label: "导出", icon: "⇩", hint: "备份迁移" },
+  { id: "settings", label: "设置", icon: "⚙", hint: "同步访问" }
 ];
 
 const schemaMap = new Map(schemas.map((schema) => [schema.kind, schema]));
@@ -756,9 +756,11 @@ function render() {
 
   app.innerHTML = html`
     <main class="app-shell">
-      ${renderHeader()}
       ${renderNav()}
-      ${renderCurrentView()}
+      <section class="app-workspace">
+        ${renderHeader()}
+        ${renderCurrentView()}
+      </section>
       ${renderDetailModal()}
       ${state.toast ? `<div class="toast" role="status">${escapeHtml(state.toast)}</div>` : ""}
     </main>
@@ -768,12 +770,13 @@ function render() {
 function renderHeader() {
   const settings = readSettings();
   const storageMode = remoteConfigured() ? "云同步可用" : "本机保存";
+  const view = views.find((item) => item.id === state.view) || views[0];
   return html`
     <header class="app-header">
       <div class="brand-block">
         <p class="eyebrow">BirdLog ${APP_VERSION}</p>
-        <h1>鸟舍学徒资产库</h1>
-        <p>把鸟舍一线记录转成复盘材料、内容素材和未来产品线索。</p>
+        <h1>${escapeHtml(view.label)}</h1>
+        <p>${escapeHtml(view.hint)} · ${today()}</p>
       </div>
       <section class="status-panel" aria-label="同步状态">
         <div>
@@ -794,12 +797,26 @@ function renderHeader() {
 function renderNav() {
   return html`
     <nav class="main-nav" aria-label="主导航">
+      <div class="nav-brand">
+        <span class="brand-glyph">B</span>
+        <div>
+          <strong>BirdLog</strong>
+          <small>鸟舍资产库</small>
+        </div>
+      </div>
       ${views
         .map(
           (view) =>
-            `<button class="${state.view === view.id ? "active" : ""}" data-action="go-view" data-view="${view.id}">${view.label}</button>`
+            `<button class="${state.view === view.id ? "active" : ""}" data-action="go-view" data-view="${view.id}">
+              <span class="nav-icon">${escapeHtml(view.icon)}</span>
+              <span class="nav-label">${escapeHtml(view.label)}</span>
+            </button>`
         )
         .join("")}
+      <div class="nav-footer">
+        <span class="${navigator.onLine ? "dot online" : "dot offline"}"></span>
+        <span>${remoteConfigured() ? "Cloud" : "Local"}</span>
+      </div>
     </nav>
   `;
 }

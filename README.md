@@ -12,7 +12,7 @@ BirdLog 是一个单人使用的鸟舍学徒记录、复盘、内容素材和产
 - 周复盘
 - Obsidian/Markdown 可导出的知识资产
 
-## 1.0 功能
+## 1.1 功能
 
 - 看板：查看总记录、近 7 天记录、连续记录天数、待整理内容和机会信号。
 - 记录：支持日常记录、异常观察、明星鸟档案、游客/宠主问题、内容素材、用户访谈、产品灵感。
@@ -24,6 +24,8 @@ BirdLog 是一个单人使用的鸟舍学徒记录、复盘、内容素材和产
 - 导出：支持 Markdown/Obsidian、CSV、JSON 备份、GPT 整理提示词。
 - 导入：支持导入 BirdLog JSON 备份。
 - 同步：保留 Supabase 云同步配置，配置只保存在当前浏览器。
+- Mac 显示：左侧导航 rail、吸顶工作状态栏、宽屏多列资料布局。
+- iPhone 显示：底部导航、单列任务流、44px 以上表单触控区、底部安全区适配。
 
 ## 本地运行
 
@@ -77,7 +79,7 @@ npm run doctor
 
 ## 同步与访问设置
 
-BirdLog 1.0 是静态网页应用，不把个人配置写进 GitHub 仓库。打开应用后进入“设置”，可填写：
+BirdLog 1.1 是静态网页应用，不把个人配置写进 GitHub 仓库。打开应用后进入“设置”，可填写：
 
 - 本地访问码：只保存在当前浏览器，用来防止随手打开就看到数据。
 - Supabase URL：你的 Supabase Project URL。
@@ -93,7 +95,7 @@ BirdLog 1.0 是静态网页应用，不把个人配置写进 GitHub 仓库。打
 3. 执行 `supabase/schema.sql`。
 4. 打开 BirdLog 的“设置”，在应用内填入 Supabase URL、anon key 和 Owner key。
 
-注意：1.0 的 Supabase 策略是个人工具用的轻量方案，使用 `owner_key` 和 `x-owner-key` 做数据隔离。不要把你的 Supabase 配置提交到 GitHub。正式给别人用之前，应升级为 Supabase Auth 或后端 API。
+注意：1.1 的 Supabase 策略是个人工具用的轻量方案，使用 `owner_key` 和 `x-owner-key` 做数据隔离。不要把你的 Supabase 配置提交到 GitHub。正式给别人用之前，应升级为 Supabase Auth 或后端 API。
 
 ## 部署到 Vercel
 
