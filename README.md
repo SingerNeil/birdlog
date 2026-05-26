@@ -100,12 +100,25 @@ BirdLog 1.1 是静态网页应用，不把个人配置写进 GitHub 仓库。打
 
 ## 部署到 Vercel
 
+当前生产地址：
+
+- https://birdlog-phi.vercel.app
+
 1. 把仓库推到 GitHub。
 2. 在 Vercel 导入该仓库。
 3. Framework 选择 Other。
-4. Build Command 留空或使用 `echo static`。
-5. Output Directory 使用项目根目录。
+4. Build Command 使用 `npm run build`。
+5. Output Directory 使用 `dist`。
 6. 部署后在应用设置里填写 Supabase 配置。
+
+当前项目已经加入 `vercel.json` 和 `scripts/build-static.mjs`。Vercel 会先把运行必需文件复制到 `dist/`，再只发布 `dist/`，避免把 README、SQL 脚本或本地部署元数据暴露到线上。
+
+如果暂时没有连接 Vercel GitHub App，可以在本机运行：
+
+```bash
+cd /Users/ming/codes/birdlog
+npx --yes vercel@latest deploy --prod --yes --force
+```
 
 ## 设计原则
 
