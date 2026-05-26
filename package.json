@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "python3 dev-server.py",
     "doctor": "python3 doctor.py",
-    "check": "node --check src/app.js"
+    "check": "node --check src/app.js",
+    "build": "node scripts/build-static.mjs",
+    "vercel-build": "npm run build"
   },
   "dependencies": {},
   "devDependencies": {}
