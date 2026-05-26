@@ -1,4 +1,4 @@
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.1.1";
 const DB_NAME = "birdlog-db";
 const DB_VERSION = 1;
 const ENTRY_STORE = "entries";
@@ -393,6 +393,7 @@ function normalizeEntry(entry) {
     fields: entry.fields || {},
     images: Array.isArray(entry.images) ? entry.images : [],
     pinned: Boolean(entry.pinned),
+    deletedAt: entry.deletedAt || "",
     createdAt: entry.createdAt || entry.updatedAt || nowIso(),
     updatedAt: entry.updatedAt || nowIso(),
     syncedAt: entry.syncedAt || ""
@@ -546,15 +547,21 @@ async function removeEntry(entryId) {
   const entry = state.entries.find((item) => item.id === entryId);
   if (!entry) return;
   if (!window.confirm(`确定删除「${entry.title}」吗？`)) return;
-  await deleteEntry(entryId);
-  state.entries = state.entries.filter((item) => item.id !== entryId);
+  const deleted = {
+    ...entry,
+    pinned: false,
+    deletedAt: nowIso(),
+    updatedAt: nowIso()
+  };
+  await putEntry(deleted);
+  state.entries = sortEntries([deleted, ...state.entries.filter((item) => item.id !== entryId)]);
   if (state.detailId === entryId) state.detailId = null;
   if (state.editingId === entryId) state.editingId = null;
   render();
 
   try {
-    await pushDelete(entryId);
-    state.syncMessage = "已删除并同步。";
+    await pushEntry(deleted);
+    state.syncMessage = remoteConfigured() ? "已删除并同步。" : "已从本机删除。";
   } catch {
     state.syncMessage = "已从本机删除，云端删除失败。";
   }
@@ -644,9 +651,13 @@ function entryText(entry) {
   ].join(" ");
 }
 
+function visibleEntries() {
+  return state.entries.filter((entry) => !entry.deletedAt);
+}
+
 function filteredEntries() {
   const query = state.filters.query.trim().toLowerCase();
-  return state.entries.filter((entry) => {
+  return visibleEntries().filter((entry) => {
     if (state.filters.kind !== "all" && entry.kind !== state.filters.kind) return false;
     if (state.filters.dateFrom && entry.date < state.filters.dateFrom) return false;
     if (state.filters.dateTo && entry.date > state.filters.dateTo) return false;
@@ -661,7 +672,7 @@ function entriesInLastDays(days) {
   const start = new Date();
   start.setDate(start.getDate() - days + 1);
   const startKey = localDateKey(start);
-  return state.entries.filter((entry) => entry.date >= startKey);
+  return visibleEntries().filter((entry) => entry.date >= startKey);
 }
 
 function countTop(values, limit = 8) {
@@ -674,11 +685,11 @@ function countTop(values, limit = 8) {
 }
 
 function allTags() {
-  return countTop(state.entries.flatMap((entry) => entry.tags || []), 50).map(([tag]) => tag);
+  return countTop(visibleEntries().flatMap((entry) => entry.tags || []), 50).map(([tag]) => tag);
 }
 
 function streakDays() {
-  const dates = new Set(state.entries.map((entry) => entry.date));
+  const dates = new Set(visibleEntries().map((entry) => entry.date));
   let cursor = new Date();
   let count = 0;
   while (dates.has(localDateKey(cursor))) {
@@ -689,19 +700,20 @@ function streakDays() {
 }
 
 function analytics() {
+  const entries = visibleEntries();
   const recent = entriesInLastDays(7);
-  const questions = state.entries.filter((entry) => entry.kind === "question");
-  const interviews = state.entries.filter((entry) => entry.kind === "interview");
-  const contentBacklog = state.entries.filter((entry) => entry.kind === "content" && entry.fields?.status !== "已发布");
-  const ideas = state.entries.filter((entry) => entry.kind === "idea");
+  const questions = entries.filter((entry) => entry.kind === "question");
+  const interviews = entries.filter((entry) => entry.kind === "interview");
+  const contentBacklog = entries.filter((entry) => entry.kind === "content" && entry.fields?.status !== "已发布");
+  const ideas = entries.filter((entry) => entry.kind === "idea");
   return {
     recent,
     questions,
     interviews,
     contentBacklog,
     ideas,
-    topSpecies: countTop(state.entries.map((entry) => entry.fields?.species || entry.fields?.bird)),
-    topTags: countTop(state.entries.flatMap((entry) => entry.tags || [])),
+    topSpecies: countTop(entries.map((entry) => entry.fields?.species || entry.fields?.bird)),
+    topTags: countTop(entries.flatMap((entry) => entry.tags || [])),
     topThemes: countTop(questions.flatMap((entry) => entry.fields?.themes || [])),
     opportunities: buildOpportunities()
   };
@@ -709,7 +721,7 @@ function analytics() {
 
 function buildOpportunities() {
   const rows = [];
-  for (const entry of state.entries) {
+  for (const entry of visibleEntries()) {
     if (entry.kind === "question") {
       const rating = Number(entry.fields.contentPotential || 0);
       const themes = fieldText(entry.fields.themes);
@@ -832,7 +844,8 @@ function renderCurrentView() {
 
 function renderDashboardView() {
   const data = analytics();
-  const recent = state.entries.slice(0, 5);
+  const entries = visibleEntries();
+  const recent = entries.slice(0, 5);
   return html`
     <section class="dashboard-grid">
       <div class="hero-panel">
@@ -850,7 +863,7 @@ function renderDashboardView() {
       </div>
 
       <section class="metric-grid">
-        ${renderMetric("总记录", state.entries.length, "所有沉淀下来的材料")}
+        ${renderMetric("总记录", entries.length, "所有沉淀下来的材料")}
         ${renderMetric("近 7 天", data.recent.length, "持续记录强度")}
         ${renderMetric("连续天数", streakDays(), "今天开始往前算")}
         ${renderMetric("待整理内容", data.contentBacklog.length, "可转成小红书/抖音")}
@@ -1361,7 +1374,7 @@ function renderSettingsView() {
           <div><span>浏览器数据库</span><strong>${"indexedDB" in window ? "可用" : "不可用"}</strong></div>
           <div><span>网络状态</span><strong>${navigator.onLine ? "在线" : "离线"}</strong></div>
           <div><span>云同步配置</span><strong>${remoteConfigured() ? "已配置" : "未配置"}</strong></div>
-          <div><span>本机记录</span><strong>${state.entries.length} 条</strong></div>
+          <div><span>本机记录</span><strong>${visibleEntries().length} 条</strong></div>
         </div>
       </section>
     </section>
@@ -1675,7 +1688,7 @@ function entriesToMarkdown(entries) {
     .map((entry) => {
       const tags = (entry.tags || []).map((tag) => `"${String(tag).replaceAll('"', '\\"')}"`).join(", ");
       const species = fieldText(entry.fields?.species || entry.fields?.bird);
-      const yaml = [
+  const yaml = [
         "---",
         `id: "${entry.id}"`,
         `date: "${entry.date}"`,
@@ -1684,6 +1697,7 @@ function entriesToMarkdown(entries) {
         `tags: [${tags}]`,
         species ? `species: "${species.replaceAll('"', '\\"')}"` : "",
         entry.pinned ? "pinned: true" : "",
+        entry.deletedAt ? `deletedAt: "${entry.deletedAt}"` : "",
         "---"
       ]
         .filter(Boolean)
