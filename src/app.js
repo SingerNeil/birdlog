@@ -1,4 +1,4 @@
-const APP_VERSION = "1.1.2";
+const APP_VERSION = "1.1.3";
 const DB_NAME = "birdlog-db";
 const DB_VERSION = 1;
 const ENTRY_STORE = "entries";
@@ -282,8 +282,11 @@ const state = {
   reviewDays: 7,
   syncMessage: "本机 IndexedDB 已启用。",
   syncing: false,
+  lastSyncAt: "",
   toast: ""
 };
+
+let lastAutoSyncAt = 0;
 
 function html(strings, ...values) {
   return strings.reduce((result, string, index) => result + string + (values[index] ?? ""), "");
@@ -334,6 +337,16 @@ function unique(values) {
 function notify(message) {
   state.toast = message;
   render();
+}
+
+function describeError(error) {
+  const raw = error?.message || String(error || "未知错误");
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed.message || raw;
+  } catch {
+    return raw;
+  }
 }
 
 function openDb() {
@@ -483,34 +496,48 @@ async function pullRemote() {
   return rows.map((row) => normalizeEntry({ ...row.payload, syncedAt: nowIso() }));
 }
 
-async function syncNow() {
+async function syncNow(options = {}) {
   if (!remoteConfigured()) {
     state.syncMessage = "未配置 Supabase，当前只保存在本机浏览器。";
     render();
     return;
   }
 
+  if (state.syncing) return;
   state.syncing = true;
-  state.syncMessage = "正在同步...";
+  state.syncMessage = options.startup ? "正在启动同步：先拉取云端..." : "正在双向同步：先拉云端，再上传本机最新状态...";
   render();
 
   try {
-    for (const entry of state.entries) {
-      await pushEntry(entry);
-    }
+    const localEntries = await getAllEntries();
     const remoteEntries = await pullRemote();
-    const merged = mergeEntries(state.entries, remoteEntries);
+    const merged = mergeEntries(localEntries, remoteEntries);
     for (const entry of merged) {
       await putEntry(entry);
     }
     state.entries = merged;
-    state.syncMessage = `同步完成：${merged.length} 条记录。`;
+    for (const entry of merged) {
+      await pushEntry(entry);
+    }
+    state.lastSyncAt = nowIso();
+    const visibleCount = visibleEntries().length;
+    const deletedCount = merged.length - visibleCount;
+    state.syncMessage = `双向同步完成：${visibleCount} 条可见记录${deletedCount ? `，${deletedCount} 条删除标记` : ""}。`;
   } catch (error) {
-    state.syncMessage = `同步失败：${error.message || "请检查 Supabase 配置和网络。"}`;
+    state.syncMessage = `同步失败：${describeError(error)}。`;
+    notify(state.syncMessage);
   } finally {
     state.syncing = false;
     render();
   }
+}
+
+function queueAutoSync(reason = "auto") {
+  if (!remoteConfigured() || state.syncing || document.hidden) return;
+  const now = Date.now();
+  if (reason !== "startup" && now - lastAutoSyncAt < 30000) return;
+  lastAutoSyncAt = now;
+  void syncNow({ startup: reason === "startup" });
 }
 
 function mergeEntries(localEntries, remoteEntries) {
@@ -535,9 +562,11 @@ async function saveEntry(entry, options = {}) {
   if (remoteConfigured()) {
     try {
       await pushEntry(normalized);
+      state.lastSyncAt = nowIso();
       state.syncMessage = "已保存并同步到云端。";
-    } catch {
-      state.syncMessage = "已保存到本机，云同步稍后重试。";
+    } catch (error) {
+      state.syncMessage = `已保存到本机，云端上传失败：${describeError(error)}。`;
+      notify(state.syncMessage);
     }
     render();
   }
@@ -561,9 +590,11 @@ async function removeEntry(entryId) {
 
   try {
     await pushEntry(deleted);
+    state.lastSyncAt = nowIso();
     state.syncMessage = remoteConfigured() ? "已删除并同步。" : "已从本机删除。";
-  } catch {
-    state.syncMessage = "已从本机删除，云端删除失败。";
+  } catch (error) {
+    state.syncMessage = `已从本机删除，云端删除失败：${describeError(error)}。`;
+    notify(state.syncMessage);
   }
   render();
 }
@@ -797,7 +828,7 @@ function renderHeader() {
           <p>${escapeHtml(state.syncMessage)}</p>
         </div>
         <div class="status-actions">
-          <button class="secondary-button" data-action="sync" ${state.syncing ? "disabled" : ""}>同步</button>
+          <button class="secondary-button" data-action="sync" ${state.syncing ? "disabled" : ""}>双向同步</button>
           <button class="secondary-button" data-action="go-view" data-view="settings">设置</button>
           ${settings.accessCode ? `<button class="secondary-button" data-action="lock-app">锁定</button>` : ""}
         </div>
@@ -1364,7 +1395,7 @@ function renderSettingsView() {
         </label>
         <div class="form-actions">
           <button class="primary-button" type="submit">保存设置</button>
-          <button class="secondary-button" type="button" data-action="sync">测试同步</button>
+          <button class="secondary-button" type="button" data-action="sync">双向同步测试</button>
         </div>
       </form>
       <section class="work-panel">
@@ -1375,6 +1406,8 @@ function renderSettingsView() {
           <div><span>网络状态</span><strong>${navigator.onLine ? "在线" : "离线"}</strong></div>
           <div><span>云同步配置</span><strong>${remoteConfigured() ? "已配置" : "未配置"}</strong></div>
           <div><span>本机记录</span><strong>${visibleEntries().length} 条</strong></div>
+          <div><span>同步逻辑</span><strong>先拉云端，再上传最新本机状态</strong></div>
+          <div><span>上次同步</span><strong>${state.lastSyncAt ? new Date(state.lastSyncAt).toLocaleString() : "尚未完成"}</strong></div>
         </div>
       </section>
     </section>
@@ -2012,6 +2045,7 @@ async function handleSubmit(event) {
     if (data.accessCode) localStorage.setItem(LOCK_KEY, String(data.accessCode));
     state.syncMessage = "设置已保存。";
     notify("设置已保存。");
+    queueAutoSync("settings");
     return;
   }
 
@@ -2032,9 +2066,15 @@ async function init() {
   document.addEventListener("input", handleInput);
   document.addEventListener("change", handleChange);
   document.addEventListener("submit", (event) => void handleSubmit(event));
+  window.addEventListener("online", () => queueAutoSync("online"));
+  window.addEventListener("focus", () => queueAutoSync("focus"));
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) queueAutoSync("visible");
+  });
   await clearOldServiceWorkers();
   state.entries = await getAllEntries();
   render();
+  queueAutoSync("startup");
 }
 
 async function clearOldServiceWorkers() {
