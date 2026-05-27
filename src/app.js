@@ -1,4 +1,4 @@
-const APP_VERSION = "1.1.1";
+const APP_VERSION = "1.1.2";
 const DB_NAME = "birdlog-db";
 const DB_VERSION = 1;
 const ENTRY_STORE = "entries";
@@ -456,7 +456,7 @@ function toRow(entry) {
 
 async function pushEntry(entry) {
   if (!remoteConfigured()) return;
-  const response = await fetch(remoteUrl("birdlog_entries?on_conflict=id"), {
+  const response = await fetch(remoteUrl("birdlog_entries?on_conflict=owner_key,id"), {
     method: "POST",
     headers: remoteHeaders({ Prefer: "resolution=merge-duplicates,return=minimal" }),
     body: JSON.stringify(toRow(entry))

@@ -1,13 +1,24 @@
 create table if not exists public.birdlog_entries (
-  id uuid primary key,
+  id uuid not null,
   owner_key text not null,
   kind text not null,
   entry_date date,
   title text,
   payload jsonb not null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  primary key (owner_key, id)
 );
+
+-- Older BirdLog schemas used id as the global primary key. That breaks when a
+-- local device changes owner_key and tries to re-upload an existing local row:
+-- PostgREST treats it as an update to a row owned by another key, and RLS blocks
+-- the write. The canonical identity is now scoped by owner_key.
+alter table public.birdlog_entries
+  drop constraint if exists birdlog_entries_pkey;
+
+alter table public.birdlog_entries
+  add constraint birdlog_entries_pkey primary key (owner_key, id);
 
 create index if not exists birdlog_entries_owner_updated_idx
   on public.birdlog_entries (owner_key, updated_at desc);
